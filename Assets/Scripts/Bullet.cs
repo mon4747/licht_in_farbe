@@ -8,45 +8,29 @@ public class Bullet : NetworkBehaviour
 
     public float speed = 12f;
 
-    public ulong ownerId; // รับค่ามาจาก ServerRpc ตอนยิง
+    public float lifeTime = 3f;
+
+    void Start()
+
+    {
+
+        if (IsServer)
+
+        {
+
+            Destroy(gameObject, lifeTime);
+
+        }
+
+    }
 
     void Update()
 
     {
 
+        // พุ่งไปตามแกน Y (Up) ของกระสุนที่ถูก Server ตั้งองศาไว้ให้แล้ว
+
         transform.Translate(Vector2.up * speed * Time.deltaTime);
-
-    }
-
-    private void OnTriggerEnter2D(Collider2D other)
-
-    {
-
-        if (!IsServer) return;
-
-        // เช็กว่าชน Player หรือไม่
-
-        if (other.TryGetComponent(out PlayerHealth health))
-
-        {
-
-            // รับ ID ของผู้เล่นที่โดนชน
-
-            ulong hitPlayerId = other.GetComponent<NetworkObject>().OwnerClientId;
-
-            // ถ้าไม่ใช่คนยิงเอง ให้ลดเลือดและทำลายกระสุน
-
-            if (hitPlayerId != ownerId)
-
-            {
-
-                health.TakeDamage(25);
-
-                GetComponent<NetworkObject>().Despawn();
-
-            }
-
-        }
 
     }
 

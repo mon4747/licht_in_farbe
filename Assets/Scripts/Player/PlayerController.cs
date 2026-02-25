@@ -8,35 +8,21 @@ public class PlayerController : NetworkBehaviour
 
     [Header("Movement")]
 
-    [SerializeField] private float moveSpeed = 5f;
+    public float moveSpeed = 5f;
 
-    private Rigidbody2D rb;
-
-    private Vector2 moveInput;
-
-    [Header("Weapon System")]
-
-    [SerializeField] private Transform shootPoint;
-
-    // ลาก Bullet Prefab ทั้ง 4 สีมาใส่ในช่องนี้ (Element 0-3)
+    [Header("Shooting")]
 
     [SerializeField] private GameObject[] bulletPrefabs;
 
-    public override void OnNetworkSpawn()
+    [SerializeField] private Transform shootPoint;
+
+    private Rigidbody2D rb;
+
+    void Awake()
 
     {
 
         rb = GetComponent<Rigidbody2D>();
-
-        if (IsOwner)
-
-        {
-
-            // วาร์ปไปจุดเกิดตาม ID
-
-            transform.position = SpawnManager.Instance.GetSpawnPosition(OwnerClientId);
-
-        }
 
     }
 
@@ -46,65 +32,59 @@ public class PlayerController : NetworkBehaviour
 
         if (!IsOwner) return;
 
-        moveInput.x = Input.GetAxisRaw("Horizontal");
+        // การเคลื่อนที่ปกติ (ตัวละครจะไม่หมุนตามเมาส์แล้ว)
 
-        moveInput.y = Input.GetAxisRaw("Vertical");
+        float moveX = Input.GetAxisRaw("Horizontal");
 
-        // ยิงกระสุน
+        float moveY = Input.GetAxisRaw("Vertical");
+
+        rb.linearVelocity = new Vector2(moveX, moveY).normalized * moveSpeed;
+
+        // เมื่อคลิกซ้าย
 
         if (Input.GetButtonDown("Fire1"))
 
         {
 
-            FireServerRpc();
+            // คำนวณหาตำแหน่งเมาส์ในโลกเกม
+
+            Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+
+            mousePos.z = 0;
+
+            // หาเวกเตอร์ทิศทางจากจุดยิงไปหาเมาส์
+
+            Vector2 shootDir = (mousePos - shootPoint.position).normalized;
+
+            // ส่งทิศทางไปให้ Server สั่งยิง
+
+            FireServerRpc(shootDir);
 
         }
-
-    }
-
-    void FixedUpdate()
-
-    {
-
-        if (!IsOwner) return;
-
-        rb.linearVelocity = moveInput.normalized * moveSpeed;
 
     }
 
     [ServerRpc]
 
-    private void FireServerRpc()
+    void FireServerRpc(Vector2 direction)
 
     {
 
-        // คำนวณ Index: ถ้า ID 0 จะได้กระสุนช่อง 0, ID 1 ได้ช่อง 1...
+        int index = (int)(OwnerClientId % (ulong)bulletPrefabs.Length);
 
-        // % bulletPrefabs.Length ช่วยกัน Error ถ้ามีผู้เล่นมากกว่าจำนวนกระสุน
+        // คำนวณมุมหมุนของกระสุนจากทิศทางที่ส่งมา
 
-        int bulletIndex = (int)(OwnerClientId % (ulong)bulletPrefabs.Length);
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f;
 
-        GameObject prefabToSpawn = bulletPrefabs[bulletIndex];
+        Quaternion rotation = Quaternion.Euler(0, 0, angle);
 
-        // สร้างกระสุนบน Server
+        // สร้างกระสุนตามมุมที่คำนวณได้
 
-        GameObject bulletInstance = Instantiate(prefabToSpawn, shootPoint.position, shootPoint.rotation);
+        GameObject bullet = Instantiate(bulletPrefabs[index], shootPoint.position, rotation);
 
-        // สั่งให้เกิดใน Network เพื่อให้ทุกคนเห็น
+        // สั่งให้ระบบ Network รู้จักกระสุน
 
-        NetworkObject nObj = bulletInstance.GetComponent<NetworkObject>();
-
-        nObj.Spawn();
-
-        // ส่ง ID เจ้าของไปที่กระสุน (ป้องกันยิงโดนตัวเอง)
-
-        if (bulletInstance.TryGetComponent(out Bullet bulletScript))
-
-        {
-
-            bulletScript.ownerId = OwnerClientId;
-
-        }
+        bullet.GetComponent<NetworkObject>().Spawn();
 
     }
 

@@ -18,7 +18,7 @@ GameObject:
   - component: {fileID: 4641848913629664857}
   m_Layer: 0
   m_Name: PlayerYellow
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -176,7 +176,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 402980585
+  GlobalObjectIdHash: 1947243079
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -249,9 +249,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   ShowTopMostFoldoutHeaderGroup: 1
   moveSpeed: 5
-  shootPoint: {fileID: 3659678357256027149}
   bulletPrefabs:
   - {fileID: 4882545102085448889, guid: 59aa2cc7145fa8d4c8c945b9daf40bb0, type: 3}
+  shootPoint: {fileID: 3659678357256027149}
 --- !u!114 &4641848913629664857
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -265,8 +265,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   ShowTopMostFoldoutHeaderGroup: 1
-  currentHp:
+  hp:
     m_InternalValue: 100
+  hpSlider: {fileID: 0}
 --- !u!1 &4168054496303832612
 GameObject:
   m_ObjectHideFlags: 0
