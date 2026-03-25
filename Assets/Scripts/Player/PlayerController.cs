@@ -64,28 +64,25 @@ public class PlayerController : NetworkBehaviour
 
     }
 
-    [ServerRpc]
+[ServerRpc]
+void FireServerRpc(Vector2 direction)
+{
+    int index = (int)(OwnerClientId % (ulong)bulletPrefabs.Length);
+    float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f;
+    Quaternion rotation = Quaternion.Euler(0, 0, angle);
 
-    void FireServerRpc(Vector2 direction)
-
+    // 1. สร้างกระสุน
+    GameObject bulletObj = Instantiate(bulletPrefabs[index], shootPoint.position, rotation);
+    
+    // 2. ส่ง ID ของ "เจ้าของคำสั่งยิง" ไปให้กระสุน
+    Bullet bulletScript = bulletObj.GetComponent<Bullet>();
+    if (bulletScript != null)
     {
-
-        int index = (int)(OwnerClientId % (ulong)bulletPrefabs.Length);
-
-        // คำนวณมุมหมุนของกระสุนจากทิศทางที่ส่งมา
-
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f;
-
-        Quaternion rotation = Quaternion.Euler(0, 0, angle);
-
-        // สร้างกระสุนตามมุมที่คำนวณได้
-
-        GameObject bullet = Instantiate(bulletPrefabs[index], shootPoint.position, rotation);
-
-        // สั่งให้ระบบ Network รู้จักกระสุน
-
-        bullet.GetComponent<NetworkObject>().Spawn();
-
+        bulletScript.shooterId = OwnerClientId; 
     }
+
+    // 3. สั่ง Spawn เข้าระบบ Network
+    bulletObj.GetComponent<NetworkObject>().Spawn();
+}
 
 }

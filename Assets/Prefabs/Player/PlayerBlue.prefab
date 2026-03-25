@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: 5053510345757414727}
   - component: {fileID: 3051745912375661532}
   - component: {fileID: 4641848913629664857}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: PlayerBlue
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -265,9 +265,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   ShowTopMostFoldoutHeaderGroup: 1
-  hp:
+  currentHp:
     m_InternalValue: 100
-  hpSlider: {fileID: 0}
 --- !u!1 &4168054496303832612
 GameObject:
   m_ObjectHideFlags: 0
