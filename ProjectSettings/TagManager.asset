@@ -8,12 +8,12 @@ TagManager:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Zone
   - Water
   - UI
   - Player
+  - Wall
   - Bullet
-  - 
   - 
   - 
   - 
@@ -43,6 +43,9 @@ TagManager:
     locked: 0
   - name: Ground
     uniqueID: 2425651459
+    locked: 0
+  - name: Zone
+    uniqueID: 188260661
     locked: 0
   - name: Wall
     uniqueID: 4250941897
