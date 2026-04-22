@@ -1,129 +1,92 @@
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using Unity.Netcode;
 using System.Collections.Generic;
 
-// Class สำหรับจับคู่ Player กับสี
 [System.Serializable]
 public class PlayerColorMapping
 {
-    public GameObject player;
+    public GameObject player; 
     public Color color;
 }
 
-public class ColorZone : MonoBehaviour
+public class ColorZone : NetworkBehaviour
 {
+    private NetworkVariable<ulong> zoneOwnerId = new NetworkVariable<ulong>(ulong.MaxValue);
+    private List<ulong> playersInZone = new List<ulong>();
     private Tilemap tilemap;
-    private Renderer zoneRenderer;
+    private SpriteRenderer zoneRenderer;
     private Color originalColor;
-    private Queue<GameObject> playerQueue = new Queue<GameObject>();
 
-    // Array สำหรับลาก Player และกำหนดสี
-    [SerializeField]
-    private PlayerColorMapping[] playerMappings = new PlayerColorMapping[4];
-
-    // ค่าที่กำหนดได้ใน Inspector
-    [SerializeField]
-    private string playerTag = "Player";
+    [SerializeField] private PlayerColorMapping[] playerMappings;
+    [SerializeField] private float scoreTickRate = 1f;
+    private float nextScoreTick = 0f;
 
     void Start()
     {
         tilemap = GetComponent<Tilemap>();
-        zoneRenderer = GetComponent<Renderer>();
+        zoneRenderer = GetComponent<SpriteRenderer>();
+        if (tilemap != null) originalColor = tilemap.color;
+        else if (zoneRenderer != null) originalColor = zoneRenderer.color;
 
-        if (tilemap != null)
-        {
-            originalColor = tilemap.color;
-        }
-        else if (zoneRenderer != null && zoneRenderer.material != null)
-        {
-            originalColor = zoneRenderer.material.color;
-        }
-        else
-        {
-            originalColor = Color.white;
-        }
-
-        Debug.Log($"ColorZone Start: tilemap={(tilemap != null)}, renderer={(zoneRenderer != null)}, originalColor={originalColor}");
+        zoneOwnerId.OnValueChanged += (oldVal, newVal) => UpdateVisualColor(newVal);
     }
 
-    void OnTriggerEnter2D(Collider2D collision)
+   // ใน Update() ของ ColorZone.cs
+void Update()
+{
+    if (!IsServer) return;
+
+    if (zoneOwnerId.Value != ulong.MaxValue && Time.time >= nextScoreTick)
     {
-        if (!collision.gameObject.CompareTag(playerTag))
-            return;
-
-        Debug.Log($"ColorZone TriggerEnter2D: {collision.gameObject.name}");
-
-        if (!playerQueue.Contains(collision.gameObject))
+        if (ScoreManager.Instance != null)
         {
-            playerQueue.Enqueue(collision.gameObject);
+            // ส่งแต้ม 10 คะแนนให้เจ้าของพื้นที่
+            ScoreManager.Instance.AddScoreRpc(zoneOwnerId.Value, 10);
+            Debug.Log($"Zone giving score to {zoneOwnerId.Value}"); 
         }
+        nextScoreTick = Time.time + scoreTickRate;
+    }
+}
 
-        UpdateZoneColor();
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (!IsServer || !collision.CompareTag("Player")) return;
+        var networkObj = collision.GetComponent<NetworkObject>();
+        if (networkObj != null)
+        {
+            ulong id = networkObj.OwnerClientId;
+            if (!playersInZone.Contains(id)) playersInZone.Add(id);
+            UpdateOwnerLogic();
+        }
     }
 
-    void OnTriggerExit2D(Collider2D collision)
+    private void OnTriggerExit2D(Collider2D collision)
     {
-        if (!collision.gameObject.CompareTag(playerTag))
-            return;
-
-        Debug.Log($"ColorZone TriggerExit2D: {collision.gameObject.name}");
-
-        if (playerQueue.Count > 0 && playerQueue.Peek() == collision.gameObject)
+        if (!IsServer || !collision.CompareTag("Player")) return;
+        var networkObj = collision.GetComponent<NetworkObject>();
+        if (networkObj != null)
         {
-            playerQueue.Dequeue();
+            ulong id = networkObj.OwnerClientId;
+            playersInZone.Remove(id);
+            UpdateOwnerLogic();
         }
-        else
-        {
-            var tempList = new List<GameObject>(playerQueue);
-            tempList.Remove(collision.gameObject);
-            playerQueue = new Queue<GameObject>(tempList);
-        }
-
-        UpdateZoneColor();
     }
 
-    Color GetPlayerColor(GameObject player)
+    private void UpdateOwnerLogic()
     {
-        string playerName = player.name.Replace("(Clone)", "").Trim();
-
-        foreach (var mapping in playerMappings)
-        {
-            if (mapping == null || mapping.player == null)
-                continue;
-
-            string mappedName = mapping.player.name.Replace("(Clone)", "").Trim();
-            if (mappedName == playerName)
-            {
-                return mapping.color;
-            }
-        }
-
-        Debug.LogWarning($"ColorZone: ไม่พบการแมปสีของ player '{player.name}' (normalized '{playerName}')");
-        return Color.white;
+        zoneOwnerId.Value = playersInZone.Count > 0 ? playersInZone[0] : ulong.MaxValue;
     }
 
-    void UpdateZoneColor()
+    private void UpdateVisualColor(ulong ownerId)
     {
-        var color = originalColor;
-
-        if (playerQueue.Count > 0)
+        Color targetColor = originalColor;
+        if (ownerId != ulong.MaxValue)
         {
-            var firstPlayer = playerQueue.Peek();
-            if (firstPlayer != null)
-            {
-                color = GetPlayerColor(firstPlayer);
-            }
+            int index = (int)(ownerId % (ulong)playerMappings.Length);
+            targetColor = playerMappings[index].color;
         }
-
-        if (tilemap != null)
-        {
-            tilemap.color = color;
-        }
-        else if (zoneRenderer != null && zoneRenderer.material != null)
-        {
-            zoneRenderer.material.color = color;
-        }
-
-        Debug.Log($"ColorZone UpdateZoneColor => {color} (queue={playerQueue.Count})");
+        if (tilemap != null) tilemap.color = targetColor;
+        if (zoneRenderer != null) zoneRenderer.color = targetColor;
     }
 }
