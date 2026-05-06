@@ -1,5 +1,18 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Unity.Netcode;
+using UnityEngine.SceneManagement;
+using Unity.Collections;
+
+public struct TeamSelectionMessage : INetworkSerializable
+{
+    public int teamIndex;
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref teamIndex);
+    }
+}
 
 [System.Serializable]
 public struct TeamOption
@@ -77,6 +90,21 @@ public class TeamSelector : MonoBehaviour
     public void SaveTeamSelection()
     {
         PlayerPrefs.SetInt(PlayerTeamKey, currentTeamIndex);
-        // ���� Code ����Ѻ����¹ Scene ����� (�� SceneManager.LoadScene)
+
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsConnectedClient)
+        {
+            var message = new TeamSelectionMessage { teamIndex = currentTeamIndex };
+            using (var writer = new FastBufferWriter(sizeof(int), Allocator.Temp))
+            {
+                writer.WriteValueSafe(message);
+                NetworkManager.Singleton.CustomMessagingManager.SendNamedMessage("TeamSelection", NetworkManager.ServerClientId, writer);
+            }
+        }
+        else
+        {
+            Debug.Log("TeamSelector: saved selection locally, network unavailable so no team message sent.");
+        }
+
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
     }
 }

@@ -1,43 +1,73 @@
 ﻿using Unity.Netcode;
-
+using Unity.Netcode.Transports;
 using UnityEngine;
- 
+using Unity.Collections;
+using System.Collections.Generic;
+
 public class PlayerSpawner : MonoBehaviour
 
 {
 
-    [SerializeField] private GameObject[] playerPrefabs; // ลาก Prefab ตัวละคร 4 ตัวใส่ที่นี่
- 
-    private void Start()
-
+        public struct TeamSelectionMessage : INetworkSerializable
     {
+        public int teamIndex;
 
-        // เมื่อมีใครกด Connect เข้ามา (ทั้ง Host และ Client)
-
-        NetworkManager.Singleton.OnClientConnectedCallback += (clientId) =>
-
+        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
-
-            if (NetworkManager.Singleton.IsServer)
-
-            {
-
-                SpawnPlayer(clientId);
-
-            }
-
-        };
-
+            serializer.SerializeValue(ref teamIndex);
+        }
     }
- 
-    private void SpawnPlayer(ulong clientId)
 
+    [SerializeField] private GameObject[] playerPrefabs; // ลาก Prefab ตัวละคร 4 ตัวใส่ที่นี่
+
+    private const string PlayerTeamKey = "SelectedTeamIndex";
+    private Dictionary<ulong, int> clientTeams = new Dictionary<ulong, int>();
+
+    private void Start()
     {
+        if (NetworkManager.Singleton == null)
+        {
+            Debug.LogWarning("PlayerSpawner: NetworkManager not found on start.");
+            return;
+        }
 
-        // เลือก Prefab ตามลำดับการเข้าเกม (0, 1, 2, 3)
+        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+        NetworkManager.Singleton.CustomMessagingManager.RegisterNamedMessageHandler("TeamSelection", OnTeamSelectionReceived);
+    }
 
-        int index = (int)(clientId % (ulong)playerPrefabs.Length);
+    private void OnClientConnected(ulong clientId)
+    {
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+        {
+            SpawnPlayer(clientId);
+        }
+    }
 
+    private void OnTeamSelectionReceived(ulong senderClientId, FastBufferReader reader)
+    {
+        reader.ReadValueSafe(out TeamSelectionMessage message);
+        clientTeams[senderClientId] = message.teamIndex;
+    }
+
+    private void SpawnPlayer(ulong clientId)
+    {
+        int index;
+        if (clientTeams.TryGetValue(clientId, out int teamIndex))
+        {
+            index = teamIndex;
+        }
+        else if (NetworkManager.Singleton != null && clientId == NetworkManager.Singleton.LocalClientId)
+        {
+            index = PlayerPrefs.GetInt(PlayerTeamKey, 0);
+            Debug.Log($"PlayerSpawner: local client spawn fallback team index {index}");
+        }
+        else
+        {
+            index = 0;
+            Debug.Log($"PlayerSpawner: no team selection message for client {clientId}, defaulting to prefab 0");
+        }
+
+        index = Mathf.Abs(index) % playerPrefabs.Length;
         GameObject prefabToSpawn = playerPrefabs[index];
  
         // หาจุดเกิดจาก SpawnManager ที่เราทำไว้
