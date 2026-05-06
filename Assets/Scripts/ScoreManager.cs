@@ -1,15 +1,14 @@
 using Unity.Netcode;
 using UnityEngine;
 using System;
+using System.Collections.Generic;
 
-// 1. ปรับปรุง struct ให้รองรับการอ่านเขียนข้อมูล (สำคัญมาก)
 [Serializable]
 public struct PlayerScoreData : INetworkSerializable, IEquatable<PlayerScoreData>
 {
     public ulong ClientId;
     public int Score;
 
-    // ฟังก์ชันนี้คือหัวใจที่ทำให้ Error สีแดงหายไป
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
         serializer.SerializeValue(ref ClientId);
@@ -26,11 +25,13 @@ public class ScoreManager : NetworkBehaviour
 {
     public static ScoreManager Instance;
     public NetworkList<PlayerScoreData> PlayerScores;
+    
+    [HideInInspector]
+    public bool canAddScore = true; // ใช้ควบคุมการหยุดบวกคะแนน
 
     private void Awake()
     {
         if (Instance == null) Instance = this;
-        // กำหนด Permission ให้ชัดเจน
         PlayerScores = new NetworkList<PlayerScoreData>(null, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     }
 
@@ -52,16 +53,28 @@ public class ScoreManager : NetworkBehaviour
     [Rpc(SendTo.Server)]
     public void AddScoreRpc(ulong clientId, int points)
     {
+        if (!canAddScore) return; // ถ้าเกมจบ Server จะไม่บวกคะแนนให้
+
         for (int i = 0; i < PlayerScores.Count; i++)
         {
             if (PlayerScores[i].ClientId == clientId)
             {
                 var data = PlayerScores[i];
                 data.Score += points;
-                PlayerScores[i] = data; // บรรทัดนี้จะทำงานได้เมื่อ Serialize ผ่านแล้ว
-                Debug.Log($"Server updated score for {clientId}: {data.Score}");
+                PlayerScores[i] = data;
                 break;
             }
         }
+    }
+
+    // ฟังก์ชันหาที่ 1
+    public PlayerScoreData GetWinner()
+    {
+        PlayerScoreData winner = new PlayerScoreData { ClientId = 999, Score = -1 };
+        foreach (var p in PlayerScores)
+        {
+            if (p.Score > winner.Score) winner = p;
+        }
+        return winner;
     }
 }
