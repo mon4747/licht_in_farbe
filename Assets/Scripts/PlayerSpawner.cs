@@ -1,8 +1,8 @@
-﻿using Unity.Netcode;
+﻿using System.Collections.Generic;
+using Unity.Netcode;
 using Unity.Netcode.Transports;
 using UnityEngine;
 using Unity.Collections;
-using System.Collections.Generic;
 
 public class PlayerSpawner : MonoBehaviour
 
@@ -22,6 +22,7 @@ public class PlayerSpawner : MonoBehaviour
 
     private const string PlayerTeamKey = "SelectedTeamIndex";
     private Dictionary<ulong, int> clientTeams = new Dictionary<ulong, int>();
+    private readonly HashSet<ulong> spawnedClients = new HashSet<ulong>();
 
     private void Start()
     {
@@ -33,6 +34,14 @@ public class PlayerSpawner : MonoBehaviour
 
         NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
         NetworkManager.Singleton.CustomMessagingManager.RegisterNamedMessageHandler("TeamSelection", OnTeamSelectionReceived);
+
+        if (NetworkManager.Singleton.IsServer)
+        {
+            foreach (ulong clientId in NetworkManager.Singleton.ConnectedClientsIds)
+            {
+                SpawnPlayer(clientId);
+            }
+        }
     }
 
     private void OnClientConnected(ulong clientId)
@@ -51,6 +60,14 @@ public class PlayerSpawner : MonoBehaviour
 
     private void SpawnPlayer(ulong clientId)
     {
+        if (spawnedClients.Contains(clientId))
+        {
+            Debug.LogWarning($"PlayerSpawner: client {clientId} already spawned, skipping duplicate.");
+            return;
+        }
+
+        spawnedClients.Add(clientId);
+
         int index;
         if (clientTeams.TryGetValue(clientId, out int teamIndex))
         {
