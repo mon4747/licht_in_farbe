@@ -27707,7 +27707,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   ShowTopMostFoldoutHeaderGroup: 1
-  gameDuration: 60
+  gameDuration: 300
   timerText: {fileID: 184318674}
   summaryPanel: {fileID: 1993614056}
   winnerText: {fileID: 1401141933}
