@@ -73,6 +73,11 @@ public class PlayerSpawner : MonoBehaviour
         {
             index = teamIndex;
         }
+        else if (NetworkServer.Instance != null && NetworkServer.Instance.TryGetTeamIndex(clientId, out int approvedTeamIndex))
+        {
+            index = approvedTeamIndex;
+            Debug.Log($"PlayerSpawner: spawn using connection payload team index {index} for client {clientId}");
+        }
         else if (NetworkManager.Singleton != null && clientId == NetworkManager.Singleton.LocalClientId)
         {
             index = PlayerPrefs.GetInt(PlayerTeamKey, 0);

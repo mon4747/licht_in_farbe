@@ -2,22 +2,25 @@ using Unity.Netcode;
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
 
 [Serializable]
 public struct PlayerScoreData : INetworkSerializable, IEquatable<PlayerScoreData>
 {
     public ulong ClientId;
     public int Score;
+    public FixedString32Bytes Name;
 
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
         serializer.SerializeValue(ref ClientId);
         serializer.SerializeValue(ref Score);
+        serializer.SerializeValue(ref Name);
     }
 
     public bool Equals(PlayerScoreData other)
     {
-        return ClientId == other.ClientId && Score == other.Score;
+        return ClientId == other.ClientId && Score == other.Score && Name.Equals(other.Name);
     }
 }
 
@@ -46,8 +49,27 @@ public class ScoreManager : NetworkBehaviour
 
     private void AddPlayer(ulong clientId)
     {
+        string playerName = GetPlayerNameForClient(clientId);
+        AddPlayer(clientId, playerName);
+    }
+
+    private void AddPlayer(ulong clientId, string playerName)
+    {
         foreach (var p in PlayerScores) if (p.ClientId == clientId) return;
-        PlayerScores.Add(new PlayerScoreData { ClientId = clientId, Score = 0 });
+        PlayerScores.Add(new PlayerScoreData { ClientId = clientId, Score = 0, Name = new FixedString32Bytes(playerName) });
+    }
+
+    private string GetPlayerNameForClient(ulong clientId)
+    {
+        if (NetworkServer.Instance != null)
+        {
+            string serverName = NetworkServer.Instance.GetPlayerName(clientId);
+            if (!string.IsNullOrWhiteSpace(serverName))
+            {
+                return serverName;
+            }
+        }
+        return $"Player {clientId}";
     }
 
     [Rpc(SendTo.Server)]

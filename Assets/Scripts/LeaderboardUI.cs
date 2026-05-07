@@ -39,7 +39,8 @@ public class LeaderboardUI : MonoBehaviour
             {
                 // ตกแต่งเพิ่มเติม: ถ้าเป็นตัวเราเองให้ไฮไลท์สีเขียว
                 string colorTag = (data.ClientId == NetworkManager.Singleton.LocalClientId) ? "<color=#00FF00>" : "<color=#FFFFFF>";
-                display += $"{colorTag}Player {data.ClientId}: {data.Score}</color>\n";
+                string displayName = data.Name.Length == 0 ? $"Player {data.ClientId}" : data.Name.ToString();
+                display += $"{colorTag}{displayName}: {data.Score}</color>\n";
             }
         }
         

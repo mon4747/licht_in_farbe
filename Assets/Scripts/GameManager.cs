@@ -74,7 +74,8 @@ public class GameManager : NetworkBehaviour
         if (ScoreManager.Instance != null)
         {
             PlayerScoreData winner = ScoreManager.Instance.GetWinner();
-            winnerText.text = $"Winner: Player {winner.ClientId}\nScore: {winner.Score}";
+            string winnerName = winner.Name.Length == 0 ? $"Player {winner.ClientId}" : winner.Name.ToString();
+            winnerText.text = $"Winner: {winnerName}\nScore: {winner.Score}";
         }
     }
 
